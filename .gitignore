@@ -1,0 +1,6 @@
+resources/**
+archive/**
+BIN/**
+server.json
+web.config
+

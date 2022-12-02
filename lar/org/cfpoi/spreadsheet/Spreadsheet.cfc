@@ -1294,7 +1294,7 @@
 						cells are impacted, and shift the impacted cells to the right to make
 						room for the new data --->
 				<cfset Local.lastCellNum = Local.row.getLastCellNum() />
-                <cfset local.jCell = createObject("java", "org.apache.poi.hssf.usermodel.HSSFCell") />
+                <cfset Local.jCell = createObject("java", "org.apache.poi.hssf.usermodel.HSSFCell") />
 
 				<cfloop index="Local.i" from="#Local.lastCellNum#" to="#Local.cellNum + 1#" step="-1">
 					<cfset Local.oldCell = Local.row.getCell(JavaCast("int", Local.i - 1)) />
@@ -1305,15 +1305,24 @@
 						<cfset Local.cell.setCellStyle( Local.oldCell.getCellStyle() ) />
 						<cfset Local.cell.setCellValue( Local.oldCell.getStringCellValue() ) />
                         <cfif structKeyExists(Local, "oldCell")>
-						  <cfset local.objCellType = Local.oldCell.GetCellType() />
+						  <cfset Local.objCellType = Local.oldCell.GetCellType() />
                         <cfelse>
-						   <cfset local.objCellType = local.jCell.CELL_TYPE_BLANK />
+						   <cfset Local.objCellType = Local.jCell.CELL_TYPE_BLANK />
                         </cfif>
-                        <cfif (local.objCellType EQ local.jCell.CELL_TYPE_NUMERIC)>
-						  <cfset Local.cell.setCellValue( JavaCast("String","") ) />
-                        <cfelse>
-						  <cfset Local.cell.setCellValue( JavaCast("String", Local.oldCell.getStringCellValue()) ) />
-                        </cfif>
+                        <cfswitch expression="#Local.objCellType#">
+                          <cfcase value="#Local.jCell.CELL_TYPE_NUMERIC#">
+                            <cfset Local.cell.setCellValue( JavaCast("int", Local.oldCell.getNumericCellValue()) ) />
+                          </cfcase>
+                          <cfcase value="#Local.jCell.CELL_TYPE_STRING#">
+                            <cfset Local.cell.setCellValue( JavaCast("string", Local.oldCell.getStringCellValue()) ) />
+                          </cfcase>
+                          <cfcase value="#Local.jCell.CELL_TYPE_BOOLEAN#">
+                            <cfset Local.cell.setCellValue( JavaCast("boolean", Local.oldCell.getStringBooleanValue()) ) />
+                          </cfcase>
+                          <cfdefaultcase>
+                            <cfset Local.cell.setCellValue( JavaCast("string","") ) />
+                          </cfdefaultcase>
+                        </cfswitch>
 						<cfset Local.cell.setCellComment( Local.oldCell.getCellComment() ) />
 					</cfif>
 
