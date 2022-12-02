@@ -1295,6 +1295,7 @@
 						room for the new data --->
 				<cfset Local.lastCellNum = Local.row.getLastCellNum() />
                 <cfset Local.jCell = createObject("java", "org.apache.poi.hssf.usermodel.HSSFCell") />
+                <cfset Local.hssfDateUtil = loadPoi("org.apache.poi.hssf.usermodel.HSSFDateUtil") />
 
 				<cfloop index="Local.i" from="#Local.lastCellNum#" to="#Local.cellNum + 1#" step="-1">
 					<cfset Local.oldCell = Local.row.getCell(JavaCast("int", Local.i - 1)) />
@@ -1309,20 +1310,24 @@
                         <cfelse>
 						   <cfset Local.objCellType = Local.jCell.CELL_TYPE_BLANK />
                         </cfif>
-                        <cfswitch expression="#Local.objCellType#">
-                          <cfcase value="#Local.jCell.CELL_TYPE_NUMERIC#">
-                            <cfset Local.cell.setCellValue( JavaCast("int", Local.oldCell.getNumericCellValue()) ) />
-                          </cfcase>
-                          <cfcase value="#Local.jCell.CELL_TYPE_STRING#">
-                            <cfset Local.cell.setCellValue( JavaCast("string", Local.oldCell.getStringCellValue()) ) />
-                          </cfcase>
-                          <cfcase value="#Local.jCell.CELL_TYPE_BOOLEAN#">
-                            <cfset Local.cell.setCellValue( JavaCast("boolean", Local.oldCell.getStringBooleanValue()) ) />
-                          </cfcase>
-                          <cfdefaultcase>
-                            <cfset Local.cell.setCellValue( JavaCast("string","") ) />
-                          </cfdefaultcase>
-                        </cfswitch>
+                        <cfif Local.objCellType EQ Local.jCell.CELL_TYPE_NUMERIC AND Local.hssfDateUtil.isCellDateFormatted(Local.oldCell)>
+						  <cfset Local.cell.setCellValue( JavaCast("java.util.Date", Local.oldCell.getDateCellValue()) ) />
+                        <cfelse>
+                          <cfswitch expression="#Local.objCellType#">
+                            <cfcase value="#Local.jCell.CELL_TYPE_NUMERIC#">
+                              <cfset Local.cell.setCellValue( JavaCast("int", Local.oldCell.getNumericCellValue()) ) />
+                            </cfcase>
+                            <cfcase value="#Local.jCell.CELL_TYPE_STRING#">
+                              <cfset Local.cell.setCellValue( JavaCast("string", Local.oldCell.getStringCellValue()) ) />
+                            </cfcase>
+                            <cfcase value="#Local.jCell.CELL_TYPE_BOOLEAN#">
+                              <cfset Local.cell.setCellValue( JavaCast("boolean", Local.oldCell.getStringBooleanValue()) ) />
+                            </cfcase>
+                            <cfdefaultcase>
+                              <cfset Local.cell.setCellValue( JavaCast("string","") ) />
+                            </cfdefaultcase>
+                          </cfswitch>
+                        </cfif>
 						<cfset Local.cell.setCellComment( Local.oldCell.getCellComment() ) />
 					</cfif>
 
