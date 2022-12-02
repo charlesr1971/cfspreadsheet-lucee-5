@@ -1309,7 +1309,9 @@
                         <cfelse>
 						   <cfset Local.objCellType = Local.jCell.CELL_TYPE_BLANK />
                         </cfif>
+                        <cfset Local.cell.setCellStyle( Local.oldCell.getCellStyle() ) />
                         <cfif Local.objCellType EQ Local.jCell.CELL_TYPE_NUMERIC AND Local.hssfDateUtil.isCellDateFormatted(Local.oldCell)>
+						  
 						  <cfset Local.cell.setCellValue( JavaCast("java.util.Date", Local.oldCell.getDateCellValue()) ) />
                         <cfelse>
                           <cfswitch expression="#Local.objCellType#">
