@@ -1304,7 +1304,6 @@
 						<!--- TODO: Handle other cell types ? --->
 						<cfset Local.cell = createCell(Local.row, Local.i) />
 						<cfset Local.cell.setCellStyle( Local.oldCell.getCellStyle() ) />
-						<cfset Local.cell.setCellValue( Local.oldCell.getStringCellValue() ) />
                         <cfif structKeyExists(Local, "oldCell")>
 						  <cfset Local.objCellType = Local.oldCell.GetCellType() />
                         <cfelse>
