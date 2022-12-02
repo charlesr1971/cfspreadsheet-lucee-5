@@ -1333,9 +1333,21 @@
 				</cfloop>
 			</cfif>
 
-			<cfset cell = createCell(Local.row, Local.cellNum) />
-
-			<cfset cell.setCellValue(JavaCast("string", Local.cellValue)) />
+			<cfset Local.cell = createCell(Local.row, Local.cellNum) />            
+            
+            <cfif IsDate(Local.cellValue)>
+              <cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
+              <cfset Local.cellFormat = getDateTimeValueFormat( Local.cellValue ) />
+			  <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+            <cfelseif IsNumeric(Local.cellValue)>
+              <cfset Local.cell.setCellValue( JavaCast("int", Local.cellValue) ) />
+            <cfelseif IsBoolean(Local.cellValue)>
+              <cfset Local.cell.setCellValue( JavaCast("boolean", Local.cellValue) ) />
+            <cfelseif NOT Len(Local.cellValue)>
+              <cfset Local.cell.setCellValue( JavaCast("string","") ) />
+            <cfelse>
+			  <cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
+            </cfif>
 
 			<cfset Local.rowNum = Local.rowNum + 1 />
 		</cfloop>
