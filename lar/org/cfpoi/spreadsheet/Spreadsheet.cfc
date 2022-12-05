@@ -1246,7 +1246,7 @@
 			hint="If false, will overwrite data in an existing column if one exists" />
 		<cfargument name="delimiter" type="string" required="true" />
         <cfargument name="format" type="any" required="false" default="false"
-			hint="Boolean: If true, new cells will be formatted to the corresponding data type; for booleans, only the values true, false, TRUE, FALSE will be accepted. Array: an array of data types, whose new cells require formatting: ['boolean', 'numeric', 'date']; or an array of new column indices: [1, 5, 2], starting from one not zero" />
+			hint="Boolean: If true, new cells will be formatted to the corresponding data type; for booleans, only the values true, false, TRUE, FALSE will be accepted. Array: an array of data types, whose new cells require formatting: ['boolean', 'numeric', 'date']; or an array of new column indices: [1, 5, 2], starting from one not zero. Struct: a struct of custom masks, using the new column indice as the key and the mask string as the value, like {1: '0.00', 2: 'boolean', 2: 'date'}; to add the default mask/value, just use boolean, date or numeric as the value" />
 
 		<!--- TODO: investigate possible VAR scope issue ? --->
 		<cfset Local.row 			= 0 />
@@ -1351,20 +1351,44 @@
 			<cfset Local.cell = createCell(Local.row, Local.cellNum) />            
             
             <cfif IsDate(Local.cellValue)>
-              <cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
-              <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"date")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum))>
+              <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"date")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum)) OR (IsStruct(arguments.format) AND StructKeyExists(arguments.format,Local.newRowNum))>
+				<!--- Excel cell date mask formats only work on dates that have been converted to the
+					epoch time in seconds --->
+				<cfset Local.date = CreateDate(Year(Local.cellValue),Month(Local.cellValue),Day(Local.cellValue)) />
+                <cfset Local.epochTime = Local.date.getTime()/1000 />
+				<cfset Local.cell.setCellValue( JavaCast("long", Local.date) ) />
 				<cfset Local.cellFormat = getDateTimeValueFormat( Local.cellValue ) />
+                <cfif IsStruct(arguments.format)>
+                  <cfif CompareNoCase(arguments.format[Local.newRowNum],"date") NEQ 0 AND Len(Trim(arguments.format[Local.newRowNum]))>
+					<cfset Local.cellFormat = arguments.format[Local.newRowNum] />
+                  </cfif>
+                </cfif>
                 <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+              <cfelse>
+				<cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
               </cfif>
             <cfelseif IsNumeric(Local.cellValue)>
               <cfset Local.cell.setCellValue( JavaCast("int", Local.cellValue) ) />
-              <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"numeric")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum))>
+              <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"numeric")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum)) OR (IsStruct(arguments.format) AND StructKeyExists(arguments.format,Local.newRowNum))>
 				<cfset Local.cellFormat = getNumericValueFormat( Local.cellValue ) />
+                <cfif IsStruct(arguments.format)>
+                  <cfif CompareNoCase(arguments.format[Local.newRowNum],"numeric") NEQ 0 AND Len(Trim(arguments.format[Local.newRowNum]))>
+					<cfset Local.cellFormat = arguments.format[Local.newRowNum] />
+                  </cfif>
+                </cfif>
                 <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
               </cfif>
             <cfelseif ListFindNoCase("true,false",Local.cellValue)>
-			  <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"boolean")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum))>
-                <cfset Local.cell.setCellValue( JavaCast("boolean", UCase(Local.cellValue)) ) />
+			  <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"boolean")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum)) OR (IsStruct(arguments.format) AND StructKeyExists(arguments.format,Local.newRowNum))>
+                <cfif IsStruct(arguments.format)>
+                  <cfif CompareNoCase(arguments.format[Local.newRowNum],"boolean") EQ 0>
+					<cfset Local.cell.setCellValue( JavaCast("boolean", UCase(Local.cellValue)) ) />
+                  <cfelse>
+					<cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
+                  </cfif>
+                <cfelse>
+                  <cfset Local.cell.setCellValue( JavaCast("boolean", UCase(Local.cellValue)) ) />
+                </cfif>
               <cfelse>
 				<cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
               </cfif>
