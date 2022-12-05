@@ -4,7 +4,7 @@
 	hint="CFC wrapper for the Apache POI project's HSSF (xls) and XSSF (xlsx) classes">
 
 	<!--- define default cell formats for when populating a sheet from a query --->
-	<cfset variables.defaultFormats = { DATE = "m/d/yy", TIMESTAMP = "m/d/yy h:mm", TIME = "h:mm:ss" } />
+	<cfset variables.defaultFormats = { DATE = "m/d/yy", TIMESTAMP = "m/d/yy h:mm", TIME = "h:mm:ss", NUMBER = "0.00" } />
 
 	<cffunction name="loadPoi" access="private" output="false" returntype="any">
 		<cfargument name="javaclass" type="string" required="true" hint="I am the java class to be loaded" />
@@ -889,6 +889,15 @@
 		</cfif>
 
 	</cffunction>
+    
+    <cffunction name="getNumericValueFormat" access="private" returntype="string"
+				hint="Returns the default number mask for the given value: NUMBER (only)">
+		<cfargument name="value" type="any" required="true" />
+
+		<cfset Local.number = Val(arguments.value) />
+		
+        <cfreturn variables.defaultFormats.NUMBER />
+	</cffunction>
 
 
 	<!--- Workaround for an issue with autoSizeColumn(). It does not seem to handle
@@ -1236,6 +1245,8 @@
 		<cfargument name="insert" type="boolean" required="false" default="true"
 			hint="If false, will overwrite data in an existing column if one exists" />
 		<cfargument name="delimiter" type="string" required="true" />
+        <cfargument name="format" type="any" required="false" default="false"
+			hint="Boolean: If true, new cells will be formatted to the corresponding data type; for booleans, only the values true, false, TRUE, FALSE will be accepted. Array: an array of data types, whose new cells require formatting: ['boolean', 'numeric', 'date']; or an array of new column indices: [1, 5, 2], starting from one not zero" />
 
 		<!--- TODO: investigate possible VAR scope issue ? --->
 		<cfset Local.row 			= 0 />
@@ -1277,6 +1288,8 @@
 			</cfif>
 
 		</cfif>
+        
+        <cfset Local.newRowNum = 1 />
 
 		<cfloop list="#arguments.data#" index="Local.cellValue" delimiters="#arguments.delimiter#">
 		<!--- if rowNum is greater than the last row of the sheet, need to create a new row --->
@@ -1339,17 +1352,29 @@
             
             <cfif IsDate(Local.cellValue)>
               <cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
-              <cfset Local.cellFormat = getDateTimeValueFormat( Local.cellValue ) />
-			  <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+              <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"date")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum))>
+				<cfset Local.cellFormat = getDateTimeValueFormat( Local.cellValue ) />
+                <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+              </cfif>
             <cfelseif IsNumeric(Local.cellValue)>
               <cfset Local.cell.setCellValue( JavaCast("int", Local.cellValue) ) />
-            <cfelseif IsBoolean(Local.cellValue)>
-              <cfset Local.cell.setCellValue( JavaCast("boolean", Local.cellValue) ) />
+              <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"numeric")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum))>
+				<cfset Local.cellFormat = getNumericValueFormat( Local.cellValue ) />
+                <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+              </cfif>
+            <cfelseif ListFindNoCase("true,false",Local.cellValue)>
+			  <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"boolean")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum))>
+                <cfset Local.cell.setCellValue( JavaCast("boolean", UCase(Local.cellValue)) ) />
+              <cfelse>
+				<cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
+              </cfif>
             <cfelseif NOT Len(Local.cellValue)>
               <cfset Local.cell.setCellValue( JavaCast("string","") ) />
             <cfelse>
 			  <cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
             </cfif>
+            
+            <cfset Local.newRowNum = Local.newRowNum + 1 />
 
 			<cfset Local.rowNum = Local.rowNum + 1 />
 		</cfloop>
