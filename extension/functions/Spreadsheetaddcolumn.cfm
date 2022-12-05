@@ -7,7 +7,7 @@
 	<cfargument name="startColumn" type="numeric" required="false" />
 	<cfargument name="insert" type="boolean" required="false" />
 	<cfargument name="delimiter" type="string" required="false" default="," />
-    <cfargument name="format" type="any" required="false" default="false" hint="Boolean: If true, new cells will be formatted to the corresponding data type; for booleans, only the values true, false, TRUE, FALSE will be accepted. Array: an array of data types, whose new cells require formatting: ['boolean', 'numeric', 'date']; or an array of new column indices: [1, 5, 2], starting from one not zero" />
+    <cfargument name="format" type="any" required="false" default="false" hint="Boolean: If true, new cells will be formatted to the corresponding data type; for booleans, only the values true, false, TRUE, FALSE will be accepted. Array: an array of data types, whose new cells require formatting: ['boolean', 'numeric', 'date']; or an array of new column indices: [1, 5, 2], starting from one not zero. Struct: a struct of custom masks, using the new column indice as the key and the mask string as the value, like {1: '0.00', 2: 'boolean', 2: 'date'}; to add the default mask/value, just use boolean, date or numeric as the value" />
 	
 	<cfif StructKeyExists(arguments, "startRow") and not StructKeyExists(arguments, "startColumn")>
 		<cfthrow type="org.cfpoi.spreadsheet.Spreadsheet" 
