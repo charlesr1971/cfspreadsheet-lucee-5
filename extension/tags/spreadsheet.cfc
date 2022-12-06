@@ -21,6 +21,7 @@
 		, sheetNameConflict: { required:false, type:"any", default="error", hint="Applies only to action 'Update'. Action to take if the requested sheetName alread exists. <ul><li><strong>Error:</strong> Stop processing and return an error</li><li><strong>Overwrite:</strong> Replace the existing sheet. All data within the sheet is deleted.</li></ul>" }
 		, readAllSheets: { required:false, type:"any", default="false", hint="Applies only to action 'Read'. If true, read all sheets in the workbook and ignore 'SheetName' and 'Sheet' values" }
 		, columnFormats: { required:false, type:"struct", hint="Applies only when using a query with action 'Write' or 'Update'. A structure of structures containing custom formats for one or more query columns" }
+		, autosize : { required:false, type:"any", hint="A Boolean value specifying whether to autosize every column, to fit the content to its cell, in a sheet. Auto sizing can be relatively slow on large sheets. For backwards compatibility, this is set to false, by default. The ACF specification sets this to true, by default. Only used with the 'write' action." }
 	}>
 	
 	<cffunction name="init" output="no" returntype="void" hint="invoked after tag is constructed">
@@ -117,6 +118,11 @@
 				</cfif>
 			</cfif>
 		</cfif>
+        
+        <cfif attributeExists("autosize") and listFindNoCase("update,read", getAttribute("action"))>
+			<!--- not a valid action=[read | update] attribute --->
+            <cfthrow type="application" message="Invalid Attribute Combination"  detail="The 'autosize' attribute can only be used in conjunction with a 'write' action" />
+        </cfif>
 
 		<cfswitch expression="#getAttribute('action')#">
 

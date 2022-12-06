@@ -177,6 +177,7 @@
 		<cfargument name="sheetname" type="string" required="false" />
 		<cfargument name="columnFormats" type="struct" default="#structNew()#" />
 		<cfargument name="autoSizeColumns" type="boolean" default="false" />
+        <cfargument name="autosize" type="boolean" />
 
 		<!--- Some of this is a duplication of the existing tag validation --->
 		<cfif StructKeyExists(arguments, "query") and StructKeyExists(arguments, "format")>
@@ -205,6 +206,14 @@
 		<cfset Local.newSheet			= 0 />
 		<cfset Local.isAppend			= true />
 		<cfset Local.sheetCount			= getWorkbook().getNumberOfSheets() />
+        
+        <!--- Added autosize attribute to tag based write action. This aligns with the
+			ACF spec for cfspreadsheet. Note, however, that the ACF spec sets
+			this attribute to true, by default. But, for backward compatability's sake,
+			it should be set to false, to start with --->
+        <cfif structKeyExists(arguments, "autosize")>
+		  <cfset arguments.autoSizeColumns = arguments.autosize />
+        </cfif>
 
 		<!--- If neither name or format is supplied, we're just writing the workbook to disk --->
 		<cfif not (structKeyExists(arguments, "query") or structKeyExists(arguments, "name"))>
@@ -907,10 +916,15 @@
 		<cfargument name="columnIndex" type="numeric" required="true" hint="Base-0 column index" />
 		<cfargument name="isDateColumn" type="boolean" default="false" />
 		<cfargument name="dateMask" type="string" default="#variables.defaultFormats['TIMESTAMP']#" />
+        <cfargument name="value" type="numeric" default="0" />
 
 		<cfif arguments.isDateColumn>
 			<!--- Add a few zeros for extra padding --->
-			<cfset Local.newWidth = estimateColumnWidth( arguments.dateMask &"00000") />
+			<cfset Local.newWidth = estimateColumnWidth( arguments.dateMask & "00000") />
+			<cfset getActiveSheet().setColumnWidth( arguments.columnIndex, Local.newWidth ) />
+		<cfelseif Val(arguments.value) NEQ 0>
+			<!--- Add a few zeros for extra padding --->
+			<cfset Local.newWidth = estimateColumnWidth( arguments.value & "00000" ) />
 			<cfset getActiveSheet().setColumnWidth( arguments.columnIndex, Local.newWidth ) />
 		<cfelse>
 			<cfset getActiveSheet().autoSizeColumn( javacast("int", arguments.columnIndex), true ) />
@@ -1290,7 +1304,8 @@
 		</cfif>
         
         <cfset Local.newRowNum = 1 />
-
+        <cfset Local.valueLengths = "" />
+        
 		<cfloop list="#arguments.data#" index="Local.cellValue" delimiters="#arguments.delimiter#">
 		<!--- if rowNum is greater than the last row of the sheet, need to create a new row --->
 			<cfif Local.rowNum GT getActiveSheet().getLastRowNum() OR isNull(getActiveSheet().getRow( Local.rowNum ))>
@@ -1307,22 +1322,23 @@
 						cells are impacted, and shift the impacted cells to the right to make
 						room for the new data --->
 				<cfset Local.lastCellNum = Local.row.getLastCellNum() />
+                                
                 <cfset Local.jCell = createObject("java", "org.apache.poi.hssf.usermodel.HSSFCell") />
+                
                 <cfset Local.hssfDateUtil = loadPoi("org.apache.poi.hssf.usermodel.HSSFDateUtil") />
-
+                
 				<cfloop index="Local.i" from="#Local.lastCellNum#" to="#Local.cellNum + 1#" step="-1">
 					<cfset Local.oldCell = Local.row.getCell(JavaCast("int", Local.i - 1)) />
 
 					<cfif not IsNull( Local.oldCell )>
 						<!--- TODO: Handle other cell types ? --->
 						<cfset Local.cell = createCell(Local.row, Local.i) />
-						<cfset Local.cell.setCellStyle( Local.oldCell.getCellStyle() ) />
-                        <cfif structKeyExists(Local, "oldCell")>
+                        <cfif StructKeyExists(Local, "oldCell")>
 						  <cfset Local.objCellType = Local.oldCell.GetCellType() />
                         <cfelse>
 						   <cfset Local.objCellType = Local.jCell.CELL_TYPE_BLANK />
                         </cfif>
-                        <cfset Local.cell.setCellStyle( Local.oldCell.getCellStyle() ) />
+						<cfset Local.cell.setCellStyle( Local.oldCell.getCellStyle() ) />
                         <cfif Local.objCellType EQ Local.jCell.CELL_TYPE_NUMERIC AND Local.hssfDateUtil.isCellDateFormatted(Local.oldCell)>
 						  
 						  <cfset Local.cell.setCellValue( JavaCast("java.util.Date", Local.oldCell.getDateCellValue()) ) />
@@ -1348,12 +1364,15 @@
 				</cfloop>
 			</cfif>
 
-			<cfset Local.cell = createCell(Local.row, Local.cellNum) />            
-            
+			<cfset Local.cell = createCell(Local.row, Local.cellNum) />  
+            <cfset Local.isDateColumn = false />
+			<cfset Local.dateMask = "" />
+            <cfset Local.numericValue = 0 />
+                                    
             <cfif IsDate(Local.cellValue)>
               <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"date")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum)) OR (IsStruct(arguments.format) AND StructKeyExists(arguments.format,Local.newRowNum))>
-				<!--- Excel cell date mask formats only work on dates that have been converted to the
-					epoch time in seconds --->
+				<!--- Excel cell date mask formats only work on dates that have been converted to the 
+						epoch time in seconds --->
 				<cfset Local.date = CreateDate(Year(Local.cellValue),Month(Local.cellValue),Day(Local.cellValue)) />
                 <cfset Local.epochTime = Local.date.getTime()/1000 />
 				<cfset Local.cell.setCellValue( JavaCast("long", Local.date) ) />
@@ -1364,6 +1383,9 @@
                   </cfif>
                 </cfif>
                 <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+                <cfset Local.dateMask = Local.cellFormat />
+				<cfset Local.isDateColumn = true />
+                <cfset Local.valueLengths = ListAppend(Local.valueLengths,Len(Local.dateMask)) />
               <cfelse>
 				<cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
               </cfif>
@@ -1375,8 +1397,17 @@
                   <cfif CompareNoCase(arguments.format[Local.newRowNum],"numeric") NEQ 0 AND Len(Trim(arguments.format[Local.newRowNum]))>
 					<cfset Local.cellFormat = arguments.format[Local.newRowNum] />
                   </cfif>
+                  <cfif CompareNoCase(arguments.format[Local.newRowNum],"string") EQ 0 AND Len(Trim(arguments.format[Local.newRowNum]))>
+					<cfset Local.cellFormat = "" />
+					<cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
+                  </cfif>
                 </cfif>
-                <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+                <cfif Len(Trim(Local.cellFormat))>
+				  <cfset Local.cell.setCellStyle( buildCellStyle({dataFormat=Local.cellFormat }) ) />
+                  <cfset Local.numericValue = NumberFormat(Local.cell.getNumericCellValue(),Local.cellFormat) />
+                  <cfset Local.dateMask = "" />
+                  <cfset Local.valueLengths = ListAppend(Local.valueLengths,Len(Local.numericValue)) />
+                </cfif>
               </cfif>
             <cfelseif ListFindNoCase("true,false",Local.cellValue)>
 			  <cfif (IsBoolean(arguments.format) AND arguments.format) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,"boolean")) OR (IsArray(arguments.format) AND ArrayFindNoCase(arguments.format,Local.newRowNum)) OR (IsStruct(arguments.format) AND StructKeyExists(arguments.format,Local.newRowNum))>
@@ -1398,8 +1429,24 @@
 			  <cfset Local.cell.setCellValue( JavaCast("string", Local.cellValue) ) />
             </cfif>
             
+            <cfset Local.autoresize = true />
+            
+            <cfif ListLen(Local.valueLengths) GT 1>
+              <cfset Local.currListItem = ListLast(Local.valueLengths) />
+              <cfset Local.prevListItem = ListGetAt(Local.valueLengths,ListLen(Local.valueLengths) - 1) />
+              <!--- If the current custom mask, for either date or numeric data types, 
+					is greater in length, it can then overwrite the previous cell width adjustment --->
+              <cfif Local.currListItem LT Local.prevListItem>
+				<cfset Local.autoresize = false />
+              </cfif>
+            </cfif>
+            
+            <cfif Local.autoresize>
+			  <cfset autoSizeColumnFix( Local.cellNum, Local.isDateColumn, Local.dateMask, Local.numericValue ) />
+            </cfif>
+            
             <cfset Local.newRowNum = Local.newRowNum + 1 />
-
+            
 			<cfset Local.rowNum = Local.rowNum + 1 />
 		</cfloop>
 	</cffunction>
