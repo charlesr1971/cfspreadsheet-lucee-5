@@ -2,15 +2,8 @@
 
   component {
 
-	this.name = 'cfspreadsheetZacLucee539166Test';
+	this.name = 'cfspreadsheetLuceeTest';
 	this.sessionManagement = true;
-	
-	this.customtagpaths = [
-		expandpath("..\..\tags")
-	];
-	this.functionpaths = [
-		expandpath("..\..\functions")
-	];
 	  
 	function onRequestStart(targetpath){
 	  var local = StructNew();

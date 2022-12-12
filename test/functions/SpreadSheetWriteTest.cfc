@@ -55,7 +55,7 @@
         
         <cfset Local.sheet = SpreadsheetWrite(Local.sheetNew, Local.src, false) />
                 
-        <cf_spreadsheet action="read" src="#Local.src#" query="Local.courses"> 
+        <cfspreadsheet action="read" src="#Local.src#" query="Local.courses"> 
         
         <!--- loop through query rows --->		
         <cfloop query="Local.courses">
