@@ -1269,7 +1269,7 @@
 		<cfreturn Local.isLong />
 	</cffunction>
     
-    <cffunction name="typeOfNumber" access="public" output="false" returntype="string"
+    <cffunction name="getJavaCastNumber" access="public" output="false" returntype="string"
 			hint="Get the type of number: double | long | int">
 		<cfargument name="value" type="numeric" required="true" />
         <cfset Local.value = "long" />
